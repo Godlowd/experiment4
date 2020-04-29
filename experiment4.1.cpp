@@ -18,7 +18,7 @@ int times = 500;
 const int seq_len = 50;
 int block[4]={-1,-1,-1,-1};
 int visit_seq [seq_len];
-
+int page_num = 32;
 page *first,*node, *head, *end;;
 struct page all[32];
 void FIFO();
@@ -52,7 +52,7 @@ int main(void)
 {
     srand((unsigned int)(time(NULL)));
     //生成页框
-    first = generate(32);
+    first = generate(page_num);
     //生成访问序列
 
     printf("进程访问页框顺序为: ");
@@ -63,52 +63,94 @@ int main(void)
         printf("%d ", n);
     }
     printf("\n");
+
+    OPT();
     //FIFO();
-    LRU();
+    //LRU();
 }
 void OPT()
 {
     //未命中次数
-    int miss = 0;
+    double miss = 0;
     //计算哪一个页框在最远的将来被访问.
-    int check[seq_len];
+
     int num;
     for(int i = 0 ; i < seq_len; i++)
     {
+        int check[32]={0};
         //如果页框中没有访问序列中要访问的页
         if(block[0]!= visit_seq[i] && block[1]!= visit_seq[i] && block[2]!= visit_seq[i] && block[3]!= visit_seq[i] )
         {
             //缺页次数加一
             miss++;
+            if(block[0]==-1||block[1]==-1||block[2]==-1||block[3]==-1)
+            {
+                block[i] = visit_seq[i];
+                printf("页%d进入block\n", block[i]);
+            }
             //寻找最远被访问的页框.首先遍历目前未访问的序列.
-            for(int j = i ; j < seq_len; j++)
+            else {
+                for(int j = i ; j < seq_len; j++)
             {
                 //之前定义一个数组,用来存储从前往后遍历遇到的页的访问次数.
                 check[visit_seq[j]]++;
                 //如果此时一个页框为的被访问次数为0,而其他的被访问次数都不为0说明他就是最远被访问的页框.
                 if(check[block[0]]==0 && check[block[1]]!=0 && check[block[2]]!=0 && check[block[3]]!=0)
                 {
+                    printf("页%d离开block,页%d进入block\n",block[0], visit_seq[i]);
                     block[0] = visit_seq[i];
                     break;
                 }
                 else if(check[block[0]]!=0 && check[block[1]]==0 && check[block[2]]!=0 && check[block[3]]!=0)
                 {
+                    printf("页%d离开block,页%d进入block\n",block[1], visit_seq[i]);
                     block[1] = visit_seq[i];
                     break;
                 }
                 else if(check[block[0]]!=0 && check[block[1]]!=0 && check[block[2]]==0 && check[block[3]]!=0)
                 {
+                    printf("页%d离开block,页%d进入block\n",block[2], visit_seq[i]);
                     block[2] = visit_seq[i];
                     break;
                 }
                 else if(check[block[0]]!=0 && check[block[1]]!=0 && check[block[2]]!=0 && check[block[3]]==0)
                 {
+                    printf("页%d离开block,页%d进入block\n",block[3], visit_seq[i]);
                     block[3] = visit_seq[i];
                     break;
                 }
+                //当block中多于1个元素在将来不会被访问时,随机选取一个元素替换
+
+            }
+            if(block[0]!=visit_seq[i] && block[1]!=visit_seq[i] && block[2]!=visit_seq[i] && block[3]!=visit_seq[i])
+            {
+                if(check[block[0]]==0)
+                {
+                    printf("页%d离开block,页%d进入block\n",block[0], visit_seq[i]);
+                    block[0] = visit_seq[i];
+                }
+                else if(check[block[1]]==0)
+                {
+                    printf("页%d离开block,页%d进入block\n",block[1], visit_seq[i]);
+                    block[1] = visit_seq[i];
+                }
+                else if(check[block[2]]==0)
+                {
+                    printf("页%d离开block,页%d进入block\n",block[2], visit_seq[i]);
+                    block[2] = visit_seq[i];
+                }
+                else if(check[block[3]]==0)
+                {
+                    printf("页%d离开block,页%d进入block\n",block[3], visit_seq[i]);
+                    block[3] = visit_seq[i];
+                }
+            }
             }
 
 
+        }
+        else {
+            printf("位于block当中的页%d被访问\n",visit_seq[i]);
         }
     }
 }
