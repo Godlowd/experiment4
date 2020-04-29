@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include <stdlib.h>
+#include <time.h>
 typedef struct page{
     int index;
     bool in_block;
@@ -14,28 +15,32 @@ typedef struct page{
 page Max(page a, page b);
 //定义访问模拟内存的次数
 int times = 500;
-const int seq_len = 32;
-int block[4]={0,0,0,0};
+const int seq_len = 50;
+int block[4]={-1,-1,-1,-1};
 int visit_seq [seq_len];
 
 page *first,*node, *head, *end;;
 struct page all[32];
+void FIFO();
+void LRU();
+void OPT();
+
 
 //生成一个链表模拟内存
 page* generate(int n)
 {
     head = (page*)malloc(sizeof(page));
-    head->index=1;
+    head->index=0;
     head->in_block = false;
     head->times_stay = 0;
     end = head;
     all[0] = *head;
-  for(int i = 0 ; i < n ; i ++)
+  for(int i = 0 ; i < n-1 ; i ++)
   {
       node = (page*)malloc(sizeof(page));
       node->times_stay = 0;
       node->in_block = false;
-      node->index = i+2;
+      node->index = i+1;
       end->next = node;
       end = node;
       all[i+1] = *node;
@@ -45,17 +50,21 @@ page* generate(int n)
 }
 int main(void)
 {
-
+    srand((unsigned int)(time(NULL)));
     //生成页框
-    first = generate(10);
+    first = generate(32);
     //生成访问序列
 
     printf("进程访问页框顺序为: ");
-    for(int & i : visit_seq)
+    for(int i =0;i< seq_len;i++)
     {
-        i = rand()%10;
-        printf("%d ", i);
+        int n = rand()%32;
+        visit_seq[i] = n;
+        printf("%d ", n);
     }
+    printf("\n");
+    //FIFO();
+    LRU();
 }
 void OPT()
 {
@@ -106,27 +115,41 @@ void OPT()
 
 void FIFO()
 {
-    int miss;
+    double miss=0;
     for(int i = 0; i < seq_len ; i++)
     {
         if(block[0] != visit_seq[i] && block[1] != visit_seq[i] && block[2] != visit_seq[i] && block[3] != visit_seq[i])
         {
             miss++;
+            printf("页%d从block中离开,页%d进入block\n", block[0], visit_seq[i]);
             block[0] = block[1];
             block[1] = block[2];
             block[2] = block[3];
             block[3] = visit_seq[i];
+
         }
         else continue;
     }
+    printf("缺页次数为: %f\n", miss);
+    printf("缺页率为: %f", miss/(double)seq_len);
 }
 
 void LRU()
 {
-    int miss;
+    double miss=0;
     page* node = head;
     for(int i = 0; i < seq_len ; i++)
     {
+        if(block[0]==-1||block[1]==-1||block[2]==-1||block[3]==-1)
+        {
+            block[i] = visit_seq[i];
+            printf("页%d进入block\n", block[i]);
+            all[block[i]].times_stay=1;
+            int k=i;
+            while(k--!=0)
+                all[block[k]].times_stay++;
+        }
+        else {
         if(block[0] != visit_seq[i] && block[1] != visit_seq[i] && block[2] != visit_seq[i] && block[3] != visit_seq[i])
         {
             miss++;
@@ -135,6 +158,8 @@ void LRU()
             //找到了index之后对block中的每一个元素进行检查,如果是则将其替换成新访问的页,并且block中其他元素的时间自增.
             if(block[0] == max)
             {
+                printf("页%d离开block,页%d进入block\n",max, visit_seq[i]);
+                all[block[0]].times_stay=0;
                 block[0] = visit_seq[i];
                 all[visit_seq[i]].times_stay=1;
                 all[block[1]].times_stay++;
@@ -143,6 +168,8 @@ void LRU()
             }
             else if(block[1] == max)
             {
+                printf("页%d离开block,页%d进入block\n",max, visit_seq[i]);
+                all[block[1]].times_stay=0;
                 block[1] = visit_seq[i];
                 all[visit_seq[i]].times_stay=1;
                 all[block[0]].times_stay++;
@@ -151,7 +178,9 @@ void LRU()
             }
             else if(block[2] == max)
             {
-                block[1] = visit_seq[i];
+                printf("页%d离开block,页%d进入block\n",max, visit_seq[i]);
+                all[block[2]].times_stay=0;
+                block[2] = visit_seq[i];
                 all[visit_seq[i]].times_stay=1;
                 all[block[0]].times_stay++;
                 all[block[1]].times_stay++;
@@ -159,7 +188,9 @@ void LRU()
             }
             else if(block[3] == max)
             {
-                block[1] = visit_seq[i];
+                printf("页%d离开block,页%d进入block\n",max, visit_seq[i]);
+                all[block[3]].times_stay=0;
+                block[3] = visit_seq[i];
                 all[visit_seq[i]].times_stay=1;
                 all[block[0]].times_stay++;
                 all[block[1]].times_stay++;
@@ -172,6 +203,7 @@ void LRU()
                 //更新all数组中对应页在block中的时间.
                 if(block[0] == visit_seq[i])
                 {
+                    printf("位于block中的页%d被访问\n",visit_seq[i]);
                     all[block[0]].times_stay=1;
                     all[block[1]].times_stay++;
                     all[block[2]].times_stay++;
@@ -179,6 +211,7 @@ void LRU()
                 }
                 else if  (block[1] == visit_seq[i])
                 {
+                    printf("位于block中的页%d被访问\n",visit_seq[i]);
                     all[block[0]].times_stay++;
                     all[block[1]].times_stay=1;
                     all[block[2]].times_stay++;
@@ -186,6 +219,7 @@ void LRU()
                 }
                 else if  (block[2] == visit_seq[i])
                 {
+                    printf("位于block中的页%d被访问\n",visit_seq[i]);
                     all[block[0]].times_stay++;
                     all[block[1]].times_stay++;
                     all[block[2]].times_stay=1;
@@ -193,13 +227,16 @@ void LRU()
                 }
                 else if  (block[3] == visit_seq[i])
                 {
+                    printf("位于block中的页%d被访问\n",visit_seq[i]);
                     all[block[0]].times_stay++;
                     all[block[1]].times_stay++;
                     all[block[2]].times_stay++;
                     all[block[3]].times_stay=1;
                 }
-                }
-            }
+                else printf("%d, error!\n", visit_seq[i]);
+                }}
+    }
+    printf("总共缺页次数: %f, 缺页率: %f", miss, miss/(double) seq_len);
 }
 page Max(page a, page b)
 {
